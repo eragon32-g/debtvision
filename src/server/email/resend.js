@@ -4,6 +4,7 @@ import {
   fallbackSupabasePasswordReset,
   generatePasswordResetLink,
   generateVerificationLink,
+  createUnconfirmedUser,
 } from '../lib/supabaseAdmin.js'
 
 const DEFAULT_FROM = 'DebtVision <noreply@debtvision.app>'
@@ -200,6 +201,11 @@ export async function sendVerificationEmail({ email, password }) {
     html,
     tags: [{ name: 'category', value: 'verification' }],
   })
+}
+
+export async function registerAndSendVerificationEmail({ email, password }) {
+  await createUnconfirmedUser(email, password)
+  return sendVerificationEmail({ email, password })
 }
 
 export async function sendPasswordResetEmail({ email }) {

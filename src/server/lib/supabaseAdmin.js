@@ -37,6 +37,56 @@ export function getAuthCallbackUrl() {
   return `${getAppOrigin()}/auth/callback`
 }
 
+function normalizeAdminAuthError(error) {
+  const message = String(error?.message ?? '')
+  const code = String(error?.code ?? error?.status ?? '')
+  const lower = message.toLowerCase()
+
+  if (
+    code === 'email_exists' ||
+    lower.includes('already been registered') ||
+    lower.includes('already registered')
+  ) {
+    const err = new Error('Questa email è già registrata. Accedi o recupera la password.')
+    err.code = 'EMAIL_ALREADY_REGISTERED'
+    return err
+  }
+
+  if (
+    lower.includes('password') &&
+    (lower.includes('weak') || lower.includes('least') || lower.includes('short'))
+  ) {
+    const err = new Error('Password troppo debole. Usa almeno 6 caratteri.')
+    err.code = 'WEAK_PASSWORD'
+    return err
+  }
+
+  if (lower.includes('invalid email')) {
+    const err = new Error('Indirizzo email non valido.')
+    err.code = 'INVALID_EMAIL'
+    return err
+  }
+
+  const err = new Error(message || 'Errore Supabase Admin.')
+  err.code = code || 'SUPABASE_ADMIN_ERROR'
+  return err
+}
+
+export async function createUnconfirmedUser(email, password) {
+  const admin = getSupabaseAdmin()
+  const { data, error } = await admin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: false,
+  })
+
+  if (error) {
+    throw normalizeAdminAuthError(error)
+  }
+
+  return data.user
+}
+
 export async function generateVerificationLink(email, password) {
   const admin = getSupabaseAdmin()
   const { data, error } = await admin.auth.admin.generateLink({
@@ -48,11 +98,15 @@ export async function generateVerificationLink(email, password) {
     },
   })
 
-  if (error) throw error
+  if (error) {
+    throw normalizeAdminAuthError(error)
+  }
 
   const actionLink = data?.properties?.action_link
   if (!actionLink) {
-    throw new Error('Link di verifica non generato da Supabase.')
+    const err = new Error('Link di verifica non generato da Supabase.')
+    err.code = 'LINK_GENERATION_FAILED'
+    throw err
   }
 
   return actionLink

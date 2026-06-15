@@ -1,0 +1,26 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": null,
+  "rewrites": [
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
+    }
+  ],
+  "functions": {
+    "api/analyze-finance.js": {
+      "maxDuration": 60
+    },
+    "api/auth/register.js": {
+      "maxDuration": 30
+    },
+    "api/auth/send-verification-email.js": {
+      "maxDuration": 30
+    },
+    "api/auth/send-password-reset-email.js": {
+      "maxDuration": 30
+    }
+  }
+}

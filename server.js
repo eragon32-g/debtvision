@@ -1,12 +1,13 @@
-// Server API locale DebtVision (Fase 12) — non esporre OPENAI_API_KEY al frontend.
+// Server API locale DebtVision — solo sviluppo locale (produzione: Vercel Serverless in /api).
 import 'dotenv/config'
 import express from 'express'
-import { analyzeFinanceHandler } from './api/analyze-finance.js'
+import { analyzeFinanceHandler } from './lib/handlers/analyze-finance.js'
 import {
   getEmailHealth,
+  registerHandler,
   sendPasswordResetEmailHandler,
   sendVerificationEmailHandler,
-} from './api/auth-email.js'
+} from './lib/handlers/auth-email.js'
 
 const PORT = Number(process.env.API_PORT) || 3001
 const app = express()
@@ -28,6 +29,10 @@ app.post('/api/analyze-finance', (req, res) => {
   analyzeFinanceHandler(req, res)
 })
 
+app.post('/api/auth/register', (req, res) => {
+  registerHandler(req, res)
+})
+
 app.post('/api/auth/send-verification-email', (req, res) => {
   sendVerificationEmailHandler(req, res)
 })
@@ -39,6 +44,7 @@ app.post('/api/auth/send-password-reset-email', (req, res) => {
 app.listen(PORT, () => {
   console.log(`[DebtVision API] http://localhost:${PORT}`)
   console.log(`[DebtVision API] POST /api/analyze-finance`)
+  console.log(`[DebtVision API] POST /api/auth/register`)
   console.log(`[DebtVision API] POST /api/auth/send-verification-email`)
   console.log(`[DebtVision API] POST /api/auth/send-password-reset-email`)
 })

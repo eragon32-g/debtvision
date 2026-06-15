@@ -1,11 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
-import { getAuthCallbackRedirectUrl } from '../utils/authCallback.js'
-import {
-  requestPasswordResetEmail,
-  requestVerificationEmail,
-  AuthEmailError,
-} from '../utils/authEmailApi.js'
+import { requestPasswordResetEmail, requestRegister, AuthEmailError } from '../utils/authEmailApi.js'
 
 const AuthContext = createContext(null)
 
@@ -45,29 +40,18 @@ export function AuthProvider({ children }) {
   }, [])
 
   const signUp = useCallback(async (email, password) => {
-    const emailRedirectTo = getAuthCallbackRedirectUrl()
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo,
-      },
-    })
-    if (error) throw error
-
     try {
-      await requestVerificationEmail(email, password)
-    } catch (emailError) {
+      const result = await requestRegister(email, password)
+      return result
+    } catch (err) {
       const message =
-        emailError instanceof AuthEmailError
-          ? emailError.message
-          : 'Registrazione creata, ma invio email di verifica non riuscito.'
-      const err = new Error(message)
-      err.code = emailError instanceof AuthEmailError ? emailError.code : 'EMAIL_SEND_FAILED'
-      throw err
+        err instanceof AuthEmailError
+          ? err.message
+          : 'Errore durante la registrazione. Riprova.'
+      const error = new Error(message)
+      error.code = err instanceof AuthEmailError ? err.code : 'REGISTER_FAILED'
+      throw error
     }
-
-    return data
   }, [])
 
   const resetPassword = useCallback(async (email) => {

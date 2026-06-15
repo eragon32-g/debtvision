@@ -1,8 +1,8 @@
-// Client API email auth (server Resend) — nessuna chiave Resend nel frontend.
+// Client API auth (server) — registrazione e email senza chiavi nel frontend.
 
-const VERIFY_URL = '/api/auth/send-verification-email'
+const REGISTER_URL = '/api/auth/register'
 const RESET_URL = '/api/auth/send-password-reset-email'
-const REQUEST_TIMEOUT_MS = 20_000
+const REQUEST_TIMEOUT_MS = 25_000
 
 export class AuthEmailError extends Error {
   constructor(message, code = 'UNKNOWN') {
@@ -12,7 +12,7 @@ export class AuthEmailError extends Error {
   }
 }
 
-async function postAuthEmail(url, body) {
+async function postAuthApi(url, body) {
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
 
@@ -34,11 +34,13 @@ async function postAuthEmail(url, body) {
     if (!response.ok) {
       const message =
         payload?.error ||
-        (response.status === 429
-          ? 'Troppe richieste email. Riprova tra qualche minuto.'
-          : response.status === 503
-            ? 'Servizio email temporaneamente non disponibile.'
-            : 'Errore durante l\'invio email.')
+        (response.status === 409
+          ? 'Questa email è già registrata.'
+          : response.status === 429
+            ? 'Troppe richieste. Riprova tra qualche minuto.'
+            : response.status === 503
+              ? 'Servizio di registrazione temporaneamente non disponibile.'
+              : 'Errore durante la registrazione.')
       throw new AuthEmailError(message, payload?.code ?? `HTTP_${response.status}`)
     }
 
@@ -46,10 +48,10 @@ async function postAuthEmail(url, body) {
   } catch (err) {
     if (err instanceof AuthEmailError) throw err
     if (err.name === 'AbortError') {
-      throw new AuthEmailError('Timeout invio email. Riprova.', 'TIMEOUT')
+      throw new AuthEmailError('Timeout della richiesta. Riprova.', 'TIMEOUT')
     }
     throw new AuthEmailError(
-      'Impossibile contattare il server email. Avvia il server con npm run dev.',
+      'Impossibile contattare il server. Avvia il server con npm run dev.',
       'NETWORK_ERROR',
     )
   } finally {
@@ -57,10 +59,10 @@ async function postAuthEmail(url, body) {
   }
 }
 
-export function requestVerificationEmail(email, password) {
-  return postAuthEmail(VERIFY_URL, { email, password })
+export function requestRegister(email, password) {
+  return postAuthApi(REGISTER_URL, { email, password })
 }
 
 export function requestPasswordResetEmail(email) {
-  return postAuthEmail(RESET_URL, { email })
+  return postAuthApi(RESET_URL, { email })
 }
