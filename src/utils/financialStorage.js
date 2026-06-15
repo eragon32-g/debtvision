@@ -28,6 +28,7 @@ export const defaultFinancialData = {
     savings: 0, // risparmi accantonati (ex income.savings)
   },
   assets: [],
+  scenarioPreferences: null,
 }
 
 export const exampleFinancialData = {
@@ -226,7 +227,38 @@ export function normalizeFinancialData(parsed) {
     variableInstallmentProducts: sanitizeArray(parsed.variableInstallmentProducts),
     liquidity: migrateLiquidity(parsed),
     assets: sanitizeArray(parsed.assets),
+    scenarioPreferences: migrateScenarioPreferences(parsed),
   }
+}
+
+function migrateScenarioPreferences(parsed) {
+  const prefs = parsed?.scenarioPreferences
+  if (!prefs || typeof prefs !== 'object') return null
+  return {
+    type: prefs.type ?? null,
+    params: prefs.params && typeof prefs.params === 'object' ? prefs.params : {},
+  }
+}
+
+export function hasMeaningfulFinancialData(data) {
+  if (!data || typeof data !== 'object') return false
+
+  const hasIncome = (data.incomeEntries ?? []).some((e) => num(e.amount) > 0)
+  const hasExpenses = (data.fixedExpenseEntries ?? []).some((e) => num(e.amount) > 0)
+  const hasLoans = (data.loans ?? []).length > 0
+  const hasCards = (data.cards ?? []).length > 0
+  const hasVip = (data.variableInstallmentProducts ?? []).length > 0
+  const hasAssets = (data.assets ?? []).some((a) => num(a.value) > 0)
+  const liq = data.liquidity ?? {}
+  const hasLiquidity =
+    num(liq.primaryAccount) > 0 ||
+    num(liq.secondaryAccount) > 0 ||
+    num(liq.cash) > 0 ||
+    num(liq.emergencyFund) > 0 ||
+    num(liq.otherLiquidAssets) > 0 ||
+    num(liq.savings) > 0
+
+  return hasIncome || hasExpenses || hasLoans || hasCards || hasVip || hasAssets || hasLiquidity
 }
 
 // True se il payload salvato contiene ancora struttura legacy da riscrivere

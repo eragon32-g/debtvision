@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import Sidebar from './Sidebar.jsx'
 import Topbar from './Topbar.jsx'
+import LocalImportBanner from '../components/LocalImportBanner.jsx'
 
 export default function MainLayout() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
@@ -18,6 +19,7 @@ export default function MainLayout() {
 
         <main className="flex-1 overflow-y-auto px-6 py-6 lg:px-8">
           <div className="mx-auto max-w-7xl">
+            <LocalImportBanner />
             <Outlet />
           </div>
         </main>

@@ -1,6 +1,7 @@
 import { useLocation } from 'react-router-dom'
-import { Menu, Search, Bell, Settings, User } from 'lucide-react'
+import { Menu, Search, Bell, Settings } from 'lucide-react'
 import { navItems } from '../config/navigation.js'
+import AccountMenu from '../components/AccountMenu.jsx'
 
 function useCurrentPage() {
   const { pathname } = useLocation()
@@ -58,15 +59,7 @@ export default function Topbar({ onMenuClick }) {
         </button>
       </div>
 
-      <div className="ml-1 flex items-center gap-2.5 border-l border-slate-800/80 pl-3">
-        <div className="hidden text-right leading-tight sm:block">
-          <p className="text-sm font-medium text-slate-200">Utente</p>
-          <p className="text-[11px] text-slate-500">Account locale</p>
-        </div>
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-800 text-slate-300 ring-1 ring-slate-700">
-          <User size={18} />
-        </div>
-      </div>
+      <AccountMenu />
     </header>
   )
 }
