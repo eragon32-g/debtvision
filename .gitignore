@@ -1,0 +1,14 @@
+# Dipendenze
+node_modules/
+
+# Build
+dist/
+
+# Ambiente — mai committare chiavi API
+.env
+.env.local
+.env.*.local
+
+# Editor / OS
+.DS_Store
+*.log

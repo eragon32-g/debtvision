@@ -1,0 +1,33 @@
+{
+  "name": "debtvision",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "DebtVision - app web per la gestione di debiti, finanziamenti, carte di credito, fidi e rateizzazioni variabili",
+  "scripts": {
+    "dev": "concurrently \"node server.js\" \"vite\"",
+    "dev:client": "vite",
+    "dev:api": "node server.js",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "dotenv": "^16.6.1",
+    "express": "^4.22.2",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
+    "lucide-react": "^0.395.0",
+    "openai": "^4.104.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.24.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.19",
+    "concurrently": "^9.2.1",
+    "postcss": "^8.4.39",
+    "tailwindcss": "^3.4.4",
+    "vite": "^5.3.1"
+  }
+}
