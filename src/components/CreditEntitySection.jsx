@@ -1,7 +1,13 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Plus, Pencil, Trash2, X, Check } from 'lucide-react'
 import Card from './Card.jsx'
 import CurrencyInput from './CurrencyInput.jsx'
+import {
+  getSuggestedCardInterestRate,
+  getKnownIssuers,
+  OFFICIAL_REFERENCE_WARNING,
+  formatReferenceDate,
+} from '../utils/cardInterestRates.js'
 
 // Sezione generica e riutilizzabile per gestire una lista di entità di credito
 // (carte di credito, fidi) tramite uno schema di campi.
@@ -22,7 +28,132 @@ import CurrencyInput from './CurrencyInput.jsx'
 const inputClass =
   'w-full rounded-lg border border-slate-800 bg-slate-900/80 py-2.5 px-3 text-sm text-slate-100 placeholder:text-slate-600 focus:border-brand-500/60 focus:outline-none focus:ring-1 focus:ring-brand-500/40'
 
-function Field({ field, value, onChange, idPrefix }) {
+function CardInterestRateField({
+  id,
+  label,
+  value,
+  onChange,
+  issuer,
+  cardType,
+  optional,
+  manualOverride,
+  onApplySuggestion,
+  onManualOverride,
+}) {
+  const suggestion = getSuggestedCardInterestRate(issuer, cardType)
+  const hasMatch = suggestion != null
+  const displayValue = value === 0 || value === undefined || value === null ? '' : value
+  const isSuggestedTan = hasMatch && Number(value) === suggestion.tan && !manualOverride
+
+  return (
+    <div className="sm:col-span-2">
+      <div className="mb-1.5 flex flex-wrap items-center gap-2">
+        <label htmlFor={id} className="text-sm font-medium text-slate-300">
+          {label} (TAN)
+          {optional && <span className="ml-1 text-xs text-slate-600">(opzionale)</span>}
+        </label>
+        {isSuggestedTan && (
+          <span className="rounded-full bg-brand-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-300">
+            Suggerito
+          </span>
+        )}
+        {manualOverride && (
+          <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-300">
+            Manuale
+          </span>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="relative">
+          <input
+            id={id}
+            type="number"
+            inputMode="decimal"
+            min={0}
+            step="0.01"
+            value={displayValue}
+            placeholder={hasMatch ? String(suggestion.tan) : '0,00'}
+            onChange={(e) => {
+              const raw = e.target.value
+              if (raw === '') return onChange(0, { manualOverride: true })
+              const parsed = parseFloat(raw)
+              onChange(Number.isFinite(parsed) ? parsed : 0, { manualOverride: true })
+            }}
+            className={[inputClass, 'pr-8'].join(' ')}
+          />
+          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-500">
+            %
+          </span>
+          <p className="mt-1 text-[11px] text-slate-500">TAN</p>
+        </div>
+
+        {hasMatch && (
+          <div className="rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-2.5">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">TAEG</p>
+            <p className="mt-0.5 text-sm font-semibold text-slate-100">{suggestion.taeg}%</p>
+          </div>
+        )}
+      </div>
+
+      {hasMatch && (
+        <div className="mt-3 rounded-lg border border-slate-800/80 bg-slate-950/30 p-3 text-xs text-slate-400">
+          <p className="font-medium text-slate-300">
+            {suggestion.issuer} · {suggestion.productName}
+          </p>
+          <p className="mt-1">
+            Fonte:{' '}
+            <a
+              href={suggestion.sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-brand-300 underline-offset-2 hover:underline"
+            >
+              {suggestion.sourceLabel}
+            </a>
+          </p>
+          <p className="mt-1">Verificato il: {formatReferenceDate(suggestion.lastChecked)}</p>
+          <p className="mt-1 text-amber-400/90">{OFFICIAL_REFERENCE_WARNING}</p>
+        </div>
+      )}
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        {hasMatch && (
+          <button
+            type="button"
+            onClick={onApplySuggestion}
+            className="inline-flex items-center rounded-lg border border-brand-500/40 bg-brand-500/10 px-3 py-1.5 text-xs font-medium text-brand-200 transition-colors hover:bg-brand-500/20"
+          >
+            Usa tasso suggerito
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onManualOverride}
+          className="inline-flex items-center rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-1.5 text-xs font-medium text-slate-300 transition-colors hover:bg-slate-800"
+        >
+          Modifica manualmente
+        </button>
+      </div>
+
+      {!hasMatch && String(issuer ?? '').trim() && String(cardType ?? '').trim() && (
+        <p className="mt-2 text-xs text-amber-400/90">
+          Tasso non trovato, inseriscilo manualmente
+        </p>
+      )}
+      {!hasMatch && String(issuer ?? '').trim() && !String(cardType ?? '').trim() && (
+        <p className="mt-2 text-xs text-slate-500">Seleziona il tipo carta per un suggerimento.</p>
+      )}
+      {hasMatch && manualOverride && (
+        <p className="mt-2 text-xs text-slate-500">
+          Suggerimento disponibile: TAN {suggestion.tan}% · TAEG {suggestion.taeg}%
+        </p>
+      )}
+    </div>
+  )
+}
+
+function Field({ field, value, onChange, idPrefix, item, cardInterestSuggestion, onInterestRateAction }) {
   const id = `${idPrefix}-${field.key}`
   const label = (
     <label htmlFor={id} className="mb-1.5 block text-sm font-medium text-slate-300">
@@ -73,7 +204,24 @@ function Field({ field, value, onChange, idPrefix }) {
     )
   }
 
-  if (field.type === 'number' || field.type === 'percent') {
+  if (field.type === 'percent' && cardInterestSuggestion && field.key === 'interestRate') {
+    return (
+      <CardInterestRateField
+        id={id}
+        label={field.label}
+        value={value}
+        onChange={(nextValue, meta) => onInterestRateAction('change', nextValue, meta)}
+        issuer={item?.issuer}
+        cardType={item?.cardType}
+        optional={field.optional}
+        manualOverride={Boolean(item?.interestRateManualOverride)}
+        onApplySuggestion={() => onInterestRateAction('apply')}
+        onManualOverride={() => onInterestRateAction('manual')}
+      />
+    )
+  }
+
+  if (field.type === 'percent') {
     return (
       <div>
         {label}
@@ -105,6 +253,54 @@ function Field({ field, value, onChange, idPrefix }) {
     )
   }
 
+  if (field.type === 'number') {
+    return (
+      <div>
+        {label}
+        <input
+          id={id}
+          type="number"
+          inputMode="numeric"
+          min={field.min ?? 0}
+          max={field.max}
+          step="1"
+          value={value === 0 || value === undefined || value === null ? '' : value}
+          placeholder={field.placeholder ?? '0'}
+          onChange={(e) => {
+            const raw = e.target.value
+            if (raw === '') return onChange(0)
+            const parsed = parseFloat(raw)
+            onChange(Number.isFinite(parsed) ? parsed : 0)
+          }}
+          className={inputClass}
+        />
+      </div>
+    )
+  }
+
+  if (field.datalist) {
+    const listId = `${id}-list`
+    return (
+      <div>
+        {label}
+        <input
+          id={id}
+          type="text"
+          list={listId}
+          value={value ?? ''}
+          placeholder={field.placeholder}
+          onChange={(e) => onChange(e.target.value)}
+          className={inputClass}
+        />
+        <datalist id={listId}>
+          {(field.datalistOptions ?? []).map((option) => (
+            <option key={option} value={option} />
+          ))}
+        </datalist>
+      </div>
+    )
+  }
+
   return (
     <div>
       {label}
@@ -120,10 +316,73 @@ function Field({ field, value, onChange, idPrefix }) {
   )
 }
 
-function EntityForm({ fields, initialItem, requiredKey, requiredMessage, idPrefix, onSubmit, onCancel }) {
-  const [item, setItem] = useState(initialItem)
+function EntityForm({
+  fields,
+  initialItem,
+  requiredKey,
+  requiredMessage,
+  idPrefix,
+  onSubmit,
+  onCancel,
+  cardInterestSuggestion = false,
+}) {
+  const [item, setItem] = useState(() => {
+    const base = {
+      ...initialItem,
+      interestRateManualOverride: Boolean(initialItem?.interestRateManualOverride),
+    }
+    if (!cardInterestSuggestion) return base
 
-  const update = (key, value) => setItem((prev) => ({ ...prev, [key]: value }))
+    const suggestion = getSuggestedCardInterestRate(base.issuer, base.cardType)
+    if (!suggestion || base.interestRateManualOverride) return base
+
+    const current = Number(base.interestRate) || 0
+    if (current > 0 && current !== suggestion.tan) {
+      return { ...base, interestRateManualOverride: true }
+    }
+    return base
+  })
+
+  const applySuggestedRate = () => {
+    const suggestion = getSuggestedCardInterestRate(item.issuer, item.cardType)
+    if (!suggestion) return
+    setItem((prev) => ({
+      ...prev,
+      interestRate: suggestion.tan,
+      interestRateManualOverride: false,
+    }))
+  }
+
+  const handleInterestRateAction = (action, value, meta) => {
+    if (action === 'apply') {
+      applySuggestedRate()
+      return
+    }
+    if (action === 'manual') {
+      setItem((prev) => ({ ...prev, interestRateManualOverride: true }))
+      return
+    }
+    setItem((prev) => ({
+      ...prev,
+      interestRate: value,
+      interestRateManualOverride: meta?.manualOverride ? true : prev.interestRateManualOverride,
+    }))
+  }
+
+  useEffect(() => {
+    if (!cardInterestSuggestion || item.interestRateManualOverride) return
+    const suggestion = getSuggestedCardInterestRate(item.issuer, item.cardType)
+    if (!suggestion) return
+    setItem((prev) =>
+      prev.interestRate === suggestion.tan
+        ? prev
+        : { ...prev, interestRate: suggestion.tan },
+    )
+  }, [item.issuer, item.cardType, item.interestRateManualOverride, cardInterestSuggestion])
+
+  const update = (key, value) => {
+    setItem((prev) => ({ ...prev, [key]: value }))
+  }
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -145,6 +404,9 @@ function EntityForm({ fields, initialItem, requiredKey, requiredMessage, idPrefi
             key={field.key}
             field={field}
             value={item[field.key]}
+            item={item}
+            cardInterestSuggestion={cardInterestSuggestion}
+            onInterestRateAction={handleInterestRateAction}
             onChange={(value) => update(field.key, value)}
             idPrefix={idPrefix}
           />
@@ -229,6 +491,7 @@ export default function CreditEntitySection({
   itemNoun = 'elemento',
   itemNounPlural = 'elementi',
   idPrefix = 'entity',
+  cardInterestSuggestion = false,
   onAdd,
   onUpdate,
   onRemove,
@@ -303,6 +566,7 @@ export default function CreditEntitySection({
             requiredKey={requiredKey}
             requiredMessage={requiredMessage}
             idPrefix={`${idPrefix}-new`}
+            cardInterestSuggestion={cardInterestSuggestion}
             onSubmit={handleSubmit}
             onCancel={cancel}
           />
@@ -323,6 +587,7 @@ export default function CreditEntitySection({
               requiredKey={requiredKey}
               requiredMessage={requiredMessage}
               idPrefix={`${idPrefix}-${item.id}`}
+              cardInterestSuggestion={cardInterestSuggestion}
               onSubmit={handleSubmit}
               onCancel={cancel}
             />

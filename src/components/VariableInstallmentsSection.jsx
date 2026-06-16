@@ -6,11 +6,45 @@ import { createEmptyVariableProduct, createEmptyInstallment } from '../utils/fin
 import {
   formatCurrency,
   getInternalInstallmentsMonthlyPayment,
-  getInstallmentRemainingMonths,
 } from '../utils/financeCalculations.js'
+import {
+  computeInstallmentFields,
+  INSTALLMENT_AUTO_HINT,
+} from '../utils/installmentDates.js'
 
 const inputClass =
   'w-full rounded-lg border border-slate-800 bg-slate-900/80 py-2.5 px-3 text-sm text-slate-100 placeholder:text-slate-600 focus:border-brand-500/60 focus:outline-none focus:ring-1 focus:ring-brand-500/40'
+
+function toDateInputValue(value) {
+  if (!value) return ''
+  if (/^\d{4}-\d{2}$/.test(value)) return `${value}-01`
+  return value
+}
+
+function ComputedField({ label, value, hint }) {
+  return (
+    <div>
+      <p className="mb-1.5 text-sm font-medium text-slate-300">{label}</p>
+      <div className="rounded-lg border border-slate-800 bg-slate-950/50 px-3 py-2.5 text-sm text-slate-200">
+        {value}
+      </div>
+      {hint && <p className="mt-1 text-xs text-brand-300/90">{hint}</p>}
+    </div>
+  )
+}
+
+function formatDisplayDate(value) {
+  if (!value) return '—'
+  if (/^\d{4}-\d{2}$/.test(value)) {
+    const [year, month] = value.split('-')
+    return `${month}/${year}`
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split('-')
+    return `${day}/${month}/${year}`
+  }
+  return value
+}
 
 function TextField({ id, label, value, onChange, placeholder, type = 'text', min, max }) {
   const isNumber = type === 'number'
@@ -139,6 +173,7 @@ function ProductForm({ initial, onSubmit, onCancel }) {
 function InstallmentForm({ initial, onSubmit, onCancel }) {
   const [inst, setInst] = useState(initial)
   const update = (key, value) => setInst((prev) => ({ ...prev, [key]: value }))
+  const computed = computeInstallmentFields(inst)
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -146,7 +181,10 @@ function InstallmentForm({ initial, onSubmit, onCancel }) {
       window.alert('Inserisci la descrizione dell\'acquisto.')
       return
     }
-    onSubmit(inst)
+    onSubmit({
+      ...inst,
+      ...computeInstallmentFields(inst),
+    })
   }
 
   return (
@@ -168,12 +206,6 @@ function InstallmentForm({ initial, onSubmit, onCancel }) {
           onChange={(v) => update('initialAmount', v)}
         />
         <CurrencyInput
-          id="inst-remaining"
-          label="Importo residuo"
-          value={inst.remainingAmount}
-          onChange={(v) => update('remainingAmount', v)}
-        />
-        <CurrencyInput
           id="inst-monthly"
           label="Rata mensile"
           value={inst.monthlyPayment}
@@ -188,34 +220,36 @@ function InstallmentForm({ initial, onSubmit, onCancel }) {
           onChange={(v) => update('totalInstallments', v)}
         />
         <TextField
-          id="inst-paid"
-          label="Rate già pagate"
-          type="number"
-          min={0}
-          value={inst.paidInstallments}
-          onChange={(v) => update('paidInstallments', v)}
-        />
-        <TextField
-          id="inst-remaining-count"
-          label="Rate mancanti"
-          type="number"
-          min={0}
-          value={inst.remainingInstallments}
-          onChange={(v) => update('remainingInstallments', v)}
-        />
-        <TextField
           id="inst-start"
-          label="Data inizio"
+          label="Data inizio / acquisto"
           type="date"
-          value={inst.startDate}
+          value={toDateInputValue(inst.startDate)}
           onChange={(v) => update('startDate', v)}
         />
-        <TextField
-          id="inst-end"
+        <ComputedField
+          label="Prima rata"
+          value={formatDisplayDate(computed.firstPaymentDate)}
+          hint={INSTALLMENT_AUTO_HINT}
+        />
+        <ComputedField
+          label="Rate già pagate"
+          value={String(computed.paidInstallments)}
+          hint={INSTALLMENT_AUTO_HINT}
+        />
+        <ComputedField
+          label="Rate mancanti"
+          value={String(computed.remainingInstallments)}
+          hint={INSTALLMENT_AUTO_HINT}
+        />
+        <ComputedField
+          label="Importo residuo"
+          value={formatCurrency(computed.remainingAmount)}
+          hint={INSTALLMENT_AUTO_HINT}
+        />
+        <ComputedField
           label="Data scadenza"
-          type="date"
-          value={inst.endDate}
-          onChange={(v) => update('endDate', v)}
+          value={formatDisplayDate(computed.endDate)}
+          hint={INSTALLMENT_AUTO_HINT}
         />
         <div className="sm:col-span-2">
           <label htmlFor="inst-notes" className="mb-1.5 block text-sm font-medium text-slate-300">
@@ -237,7 +271,9 @@ function InstallmentForm({ initial, onSubmit, onCancel }) {
 }
 
 function InstallmentRow({ installment, onEdit, onRemove }) {
-  const months = getInstallmentRemainingMonths(installment)
+  const computed = computeInstallmentFields(installment)
+  const months = computed.remainingInstallments
+  const endLabel = formatDisplayDate(computed.endDate)
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-slate-800/70 bg-slate-950/30 p-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
@@ -247,14 +283,22 @@ function InstallmentRow({ installment, onEdit, onRemove }) {
             Rata: <span className="font-medium text-slate-200">{formatCurrency(installment.monthlyPayment)}</span>
           </span>
           <span>
-            Residuo: <span className="font-medium text-slate-200">{formatCurrency(installment.remainingAmount)}</span>
+            Residuo: <span className="font-medium text-slate-200">{formatCurrency(computed.remainingAmount)}</span>
           </span>
           <span>
-            Rate: <span className="font-medium text-slate-200">{installment.paidInstallments}/{installment.totalInstallments}</span>
+            Rate:{' '}
+            <span className="font-medium text-slate-200">
+              {computed.paidInstallments}/{installment.totalInstallments}
+            </span>
           </span>
           <span>
             Mancano: <span className="font-medium text-slate-200">{months} {months === 1 ? 'mese' : 'mesi'}</span>
           </span>
+          {endLabel !== '—' && (
+            <span>
+              Scadenza: <span className="font-medium text-slate-200">{endLabel}</span>
+            </span>
+          )}
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-1.5">

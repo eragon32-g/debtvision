@@ -1,6 +1,8 @@
 // Motore locale del piano di recupero finanziario (Fase 8)
 // Nessuna AI, nessuna API: genera azioni prudenti da snapshot esistente.
 
+import { getInstallmentRemainingMonths } from './financeCalculations.js'
+
 const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 }
 
 let actionCounter = 0
@@ -30,7 +32,7 @@ function hasVariableEndingWithinMonths(snapshot, months) {
   const products = snapshot.variableInstallmentProducts ?? []
   return products.some((product) =>
     (product.installments ?? []).some((inst) => {
-      const remaining = Number(inst.remainingInstallments) || 0
+      const remaining = getInstallmentRemainingMonths(inst)
       return remaining > 0 && remaining <= months
     }),
   )
@@ -41,7 +43,7 @@ function getVariableEndingSoon(snapshot, months) {
   const products = snapshot.variableInstallmentProducts ?? []
   products.forEach((product) => {
     ;(product.installments ?? []).forEach((inst) => {
-      const remaining = Number(inst.remainingInstallments) || 0
+      const remaining = getInstallmentRemainingMonths(inst)
       if (remaining > 0 && remaining <= months) {
         results.push({
           product: product.name,

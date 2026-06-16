@@ -2,6 +2,8 @@
 // Modello unificato: nessun campo legacy (netSalary, fixedExpenses flat, ecc.)
 
 import { parseMoney } from './money.js'
+import { normalizeInstallmentComputedFields } from './installmentDates.js'
+import { roundMoney } from './money.js'
 
 export const STORAGE_KEY = 'debtvision_financial_data'
 
@@ -239,20 +241,24 @@ function normalizeLiquidity(liq) {
 }
 
 function normalizeInstallment(inst) {
-  return {
+  return normalizeInstallmentComputedFields({
     ...inst,
     initialAmount: num(inst.initialAmount),
-    remainingAmount: num(inst.remainingAmount),
     monthlyPayment: num(inst.monthlyPayment),
-  }
+    totalInstallments: Math.max(0, Math.round(num(inst.totalInstallments))),
+  })
 }
 
 function normalizeVariableProduct(product) {
+  const installments = sanitizeArray(product.installments).map(normalizeInstallment)
+  const internalRemaining = installments.reduce((sum, inst) => sum + num(inst.remainingAmount), 0)
+
   return {
     ...product,
     monthlyPayment: num(product.monthlyPayment),
-    remainingAmount: num(product.remainingAmount),
-    installments: sanitizeArray(product.installments).map(normalizeInstallment),
+    remainingAmount:
+      installments.length > 0 ? roundMoney(internalRemaining) : num(product.remainingAmount),
+    installments,
   }
 }
 
@@ -271,6 +277,8 @@ function normalizeCard(card) {
     totalLimit: num(card.totalLimit),
     usedLimit: num(card.usedLimit),
     monthlyPayment: num(card.monthlyPayment),
+    interestRate: num(card.interestRate),
+    interestRateManualOverride: Boolean(card.interestRateManualOverride),
   }
 }
 
@@ -426,6 +434,7 @@ export function createEmptyCard() {
     monthlyPayment: 0,
     billingDay: 0,
     interestRate: 0,
+    interestRateManualOverride: false,
     notes: '',
   }
 }

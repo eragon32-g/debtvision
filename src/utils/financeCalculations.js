@@ -2,6 +2,7 @@
 // Tutte le funzioni sono pure e accettano l'oggetto dati finanziari.
 
 import { parseMoney } from './money.js'
+import { calculateRemainingInstallments, computeInstallmentFields } from './installmentDates.js'
 
 const num = parseMoney
 
@@ -145,15 +146,18 @@ function getProductInstallments(product) {
   return Array.isArray(product?.installments) ? product.installments : []
 }
 
-// Mesi residui di una singola rateizzazione interna
+// Mesi residui di una singola rateizzazione interna (calcolati, non manuali)
 export function getInstallmentRemainingMonths(installment) {
-  const remainingCount = num(installment?.remainingInstallments)
-  if (remainingCount > 0) return Math.round(remainingCount)
-  // fallback: importo residuo / rata mensile
-  const monthly = num(installment?.monthlyPayment)
-  const remainingAmount = num(installment?.remainingAmount)
-  if (monthly > 0 && remainingAmount > 0) return Math.ceil(remainingAmount / monthly)
+  const startDate = installment?.startDate ?? ''
+  const totalInstallments = Math.max(0, Math.round(num(installment?.totalInstallments)))
+  if (startDate && totalInstallments > 0) {
+    return calculateRemainingInstallments(startDate, totalInstallments)
+  }
   return 0
+}
+
+export function getComputedInstallmentFields(installment, currentDate = new Date()) {
+  return computeInstallmentFields(installment, currentDate)
 }
 
 // Somma rate mensili delle rateizzazioni interne di un prodotto
@@ -164,12 +168,12 @@ export function getInternalInstallmentsMonthlyPayment(product) {
   )
 }
 
-// Somma importi residui delle rateizzazioni interne di un prodotto
+// Somma importi residui calcolati delle rateizzazioni interne di un prodotto
 function getInternalInstallmentsRemaining(product) {
-  return getProductInstallments(product).reduce(
-    (sum, inst) => sum + num(inst?.remainingAmount),
-    0,
-  )
+  return getProductInstallments(product).reduce((sum, inst) => {
+    const { remainingAmount } = computeInstallmentFields(inst)
+    return sum + remainingAmount
+  }, 0)
 }
 
 // Debito variabile stimato totale.
@@ -222,6 +226,15 @@ export function getInstallmentEndEvents(data) {
       const remaining = getInstallmentRemainingMonths(inst)
       if (remaining <= 0) return
 
+      const computed = computeInstallmentFields(inst)
+      const endLabelDate = (() => {
+        const raw = String(computed.endDate ?? '').trim()
+        if (!raw) return addMonths(now, remaining)
+        const iso = /^\d{4}-\d{2}$/.test(raw) ? `${raw}-01` : raw
+        const parsed = new Date(iso)
+        return Number.isNaN(parsed.getTime()) ? addMonths(now, remaining) : parsed
+      })()
+
       // Nuova rata stimata del prodotto dopo la fine di questa rateizzazione:
       // somma delle rate interne ancora attive oltre questo mese.
       const newProductPayment = installments
@@ -230,7 +243,8 @@ export function getInstallmentEndEvents(data) {
 
       events.push({
         monthIndex: remaining,
-        monthLabel: formatMonthYear(addMonths(now, remaining)),
+        monthLabel: formatMonthYear(endLabelDate),
+        endDate: computed.endDate ?? '',
         productId: product.id,
         productName: product.name,
         description: inst.description,

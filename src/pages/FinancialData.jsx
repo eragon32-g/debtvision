@@ -10,6 +10,7 @@ import LiquiditySection from '../components/LiquiditySection.jsx'
 import AssetsSection from '../components/AssetsSection.jsx'
 import { useFinancialData } from '../hooks/useFinancialData.js'
 import { createEmptyCard, createEmptyIncomeEntry, createEmptyFixedExpenseEntry } from '../utils/financialStorage.js'
+import { getKnownIssuers } from '../utils/cardInterestRates.js'
 import {
   getTotalIncome,
   getTotalFixedExpenses,
@@ -17,20 +18,41 @@ import {
   formatCurrency,
 } from '../utils/financeCalculations.js'
 
-// Opzioni per il tipo di carta
 const cardTypeOptions = [
-  { value: 'standard', label: 'Standard' },
-  { value: 'oro', label: 'Oro' },
-  { value: 'platino', label: 'Platino' },
+  { value: 'standard', label: 'Standard / Classic' },
+  { value: 'agospay', label: 'AgosPay' },
+  { value: 'agospay-zero', label: 'AgosPay Zero' },
+  { value: 'verde', label: 'Verde / Green' },
+  { value: 'oro', label: 'Oro / Gold' },
+  { value: 'platino', label: 'Platino / Platinum' },
+  { value: 'blu', label: 'Blu / Blue' },
+  { value: 'explora', label: 'Explora' },
+  { value: 'ita-airways', label: 'ITA Airways' },
+  { value: 'ita-airways-oro', label: 'ITA Airways Oro' },
+  { value: 'payback', label: 'Payback' },
   { value: 'revolving', label: 'Revolving' },
+  { value: 'mediaworld', label: 'MediaWorld' },
+  { value: 'creditline', label: 'CreditLine' },
+  { value: 'pagocredit', label: 'PagoCREDIT' },
   { value: 'charge', label: 'Charge' },
+  { value: 'mastercard', label: 'Mastercard' },
+  { value: 'visa', label: 'Visa' },
   { value: 'altro', label: 'Altro' },
 ]
+
+const knownCardIssuers = getKnownIssuers()
 
 // Schema dei campi per le carte di credito (Fase 4.1)
 const cardFields = [
   { key: 'name', label: 'Nome carta', type: 'text', placeholder: 'Es. Carta Gold' },
-  { key: 'issuer', label: 'Emittente / Banca', type: 'text', placeholder: 'Es. Banca Esempio' },
+  {
+    key: 'issuer',
+    label: 'Emittente / Banca',
+    type: 'text',
+    datalist: true,
+    datalistOptions: knownCardIssuers,
+    placeholder: 'Es. American Express',
+  },
   { key: 'cardType', label: 'Tipo carta', type: 'select', options: cardTypeOptions },
   { key: 'totalLimit', label: 'Plafond totale', type: 'currency' },
   { key: 'usedLimit', label: 'Plafond utilizzato', type: 'currency' },
@@ -204,6 +226,7 @@ export default function FinancialData() {
           itemNoun="carta"
           itemNounPlural="carte"
           idPrefix="card"
+          cardInterestSuggestion
           emptyText="Aggiungi la tua prima carta di credito."
           summary={(card) => [
             { label: 'Tipo', value: cardTypeLabels[card.cardType] ?? '—' },
