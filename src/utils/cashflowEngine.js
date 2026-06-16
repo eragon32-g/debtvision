@@ -1,9 +1,8 @@
 // Motore cashflow mensile (Fase 9) — simulazione locale, nessuna API.
 
-function num(value) {
-  const n = typeof value === 'string' ? parseFloat(value) : value
-  return Number.isFinite(n) ? n : 0
-}
+import { parseMoney } from './money.js'
+
+const num = parseMoney
 
 function clampDay(day) {
   const d = Math.round(num(day))

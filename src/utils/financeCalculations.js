@@ -1,10 +1,9 @@
 // Calcoli finanziari di base (Fase 2)
 // Tutte le funzioni sono pure e accettano l'oggetto dati finanziari.
 
-function num(value) {
-  const n = typeof value === 'string' ? parseFloat(value) : value
-  return Number.isFinite(n) ? n : 0
-}
+import { parseMoney } from './money.js'
+
+const num = parseMoney
 
 // Entrate totali = somma voci in incomeEntries[]
 export function getTotalIncome(data) {

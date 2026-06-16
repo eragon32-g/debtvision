@@ -25,6 +25,7 @@ import {
   compareSnapshots,
   getScenarioInsights,
   getDefaultScenarioParams,
+  calcMonthlyFromTotal,
 } from '../utils/scenarioSimulator.js'
 
 const inputClass =
@@ -123,7 +124,7 @@ function ScenarioForm({ type, params, onChange, data }) {
 
   const calcMonthly =
     type === SCENARIO_TYPES.NEW_INSTALLMENT && params.installmentsCount > 0
-      ? Math.round((params.totalAmount / params.installmentsCount) * 100) / 100
+      ? calcMonthlyFromTotal(params.totalAmount, params.installmentsCount)
       : 0
 
   switch (type) {

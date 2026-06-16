@@ -1,12 +1,11 @@
 // Persistenza locale dei dati finanziari (Fase 2 / 10.2)
 // Modello unificato: nessun campo legacy (netSalary, fixedExpenses flat, ecc.)
 
+import { parseMoney } from './money.js'
+
 export const STORAGE_KEY = 'debtvision_financial_data'
 
-function num(value) {
-  const n = typeof value === 'string' ? parseFloat(value) : value
-  return Number.isFinite(n) ? n : 0
-}
+const num = parseMoney
 
 function clone(data) {
   return JSON.parse(JSON.stringify(data))
@@ -206,10 +205,116 @@ function migrateFixedExpenseEntries(parsed) {
 function migrateLiquidity(parsed) {
   const legacySavings = num(parsed?.income?.savings)
   const liq = parsed?.liquidity ?? {}
-  return {
+  return normalizeLiquidity({
     ...defaultFinancialData.liquidity,
     ...liq,
     savings: num(liq.savings) > 0 ? num(liq.savings) : legacySavings,
+  })
+}
+
+const LIQUIDITY_MONEY_KEYS = [
+  'primaryAccount',
+  'secondaryAccount',
+  'cash',
+  'emergencyFund',
+  'otherLiquidAssets',
+  'savings',
+]
+
+const SCENARIO_PARAM_MONEY_KEYS = [
+  'totalAmount',
+  'remainingAmount',
+  'monthlyPayment',
+  'additionalUsage',
+  'amount',
+  'reductionAmount',
+]
+
+function normalizeLiquidity(liq) {
+  const out = { ...defaultFinancialData.liquidity, ...liq }
+  for (const key of LIQUIDITY_MONEY_KEYS) {
+    out[key] = num(out[key])
+  }
+  return out
+}
+
+function normalizeInstallment(inst) {
+  return {
+    ...inst,
+    initialAmount: num(inst.initialAmount),
+    remainingAmount: num(inst.remainingAmount),
+    monthlyPayment: num(inst.monthlyPayment),
+  }
+}
+
+function normalizeVariableProduct(product) {
+  return {
+    ...product,
+    monthlyPayment: num(product.monthlyPayment),
+    remainingAmount: num(product.remainingAmount),
+    installments: sanitizeArray(product.installments).map(normalizeInstallment),
+  }
+}
+
+function normalizeLoan(loan) {
+  return {
+    ...loan,
+    initialAmount: num(loan.initialAmount),
+    remainingAmount: num(loan.remainingAmount),
+    monthlyPayment: num(loan.monthlyPayment),
+  }
+}
+
+function normalizeCard(card) {
+  return {
+    ...card,
+    totalLimit: num(card.totalLimit),
+    usedLimit: num(card.usedLimit),
+    monthlyPayment: num(card.monthlyPayment),
+  }
+}
+
+function normalizeAsset(asset) {
+  return {
+    ...asset,
+    value: num(asset.value),
+  }
+}
+
+function normalizeMoneyEntry(entry) {
+  return {
+    ...entry,
+    amount: num(entry.amount),
+  }
+}
+
+function normalizeScenarioParams(params) {
+  if (!params || typeof params !== 'object') return {}
+  const out = { ...params }
+  for (const key of SCENARIO_PARAM_MONEY_KEYS) {
+    if (key in out) out[key] = num(out[key])
+  }
+  return out
+}
+
+function normalizeFinancialAmounts(data) {
+  return {
+    ...data,
+    incomeEntries: sanitizeArray(data.incomeEntries).map(normalizeMoneyEntry),
+    fixedExpenseEntries: sanitizeArray(data.fixedExpenseEntries).map(normalizeMoneyEntry),
+    loans: sanitizeArray(data.loans).map(normalizeLoan),
+    cards: sanitizeArray(data.cards).map(normalizeCard),
+    variableInstallmentProducts: sanitizeArray(data.variableInstallmentProducts).map(
+      normalizeVariableProduct,
+    ),
+    liquidity: normalizeLiquidity(data.liquidity ?? {}),
+    assets: sanitizeArray(data.assets).map(normalizeAsset),
+    scenarioPreferences: data.scenarioPreferences
+      ? {
+          ...data.scenarioPreferences,
+          params: normalizeScenarioParams(data.scenarioPreferences.params),
+        }
+      : null,
   }
 }
 
@@ -219,7 +324,7 @@ export function normalizeFinancialData(parsed) {
     return clone(defaultFinancialData)
   }
 
-  return {
+  return normalizeFinancialAmounts({
     incomeEntries: migrateIncomeEntries(parsed),
     fixedExpenseEntries: migrateFixedExpenseEntries(parsed),
     loans: sanitizeArray(parsed.loans),
@@ -228,7 +333,7 @@ export function normalizeFinancialData(parsed) {
     liquidity: migrateLiquidity(parsed),
     assets: sanitizeArray(parsed.assets),
     scenarioPreferences: migrateScenarioPreferences(parsed),
-  }
+  })
 }
 
 function migrateScenarioPreferences(parsed) {

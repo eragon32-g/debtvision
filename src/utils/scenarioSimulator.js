@@ -3,11 +3,9 @@ import { createAnalysisSnapshot } from './financialInsights.js'
 import { getInternalInstallmentsMonthlyPayment } from './financeCalculations.js'
 import { formatCurrency } from './financeCalculations.js'
 import { normalizeFinancialData } from './financialStorage.js'
+import { parseMoney, roundMoney } from './money.js'
 
-function num(value) {
-  const n = typeof value === 'string' ? parseFloat(value) : value
-  return Number.isFinite(n) ? n : 0
-}
+const num = parseMoney
 
 function generateSimId(prefix) {
   return `sim-${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
@@ -38,10 +36,10 @@ export function cloneFinancialData(data) {
   return normalizeFinancialData(data)
 }
 
-function calcMonthlyFromTotal(totalAmount, installmentsCount) {
+export function calcMonthlyFromTotal(totalAmount, installmentsCount) {
   const count = Math.max(1, Math.round(num(installmentsCount)))
   const total = num(totalAmount)
-  return Math.round((total / count) * 100) / 100
+  return roundMoney(total / count)
 }
 
 // Applica uno scenario ipotetico su una copia dei dati

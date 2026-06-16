@@ -35,10 +35,9 @@ const HEALTH_COLORS = {
 
 const NO_DATA = 'Nessun dato disponibile'
 
-function num(v) {
-  const n = typeof v === 'string' ? parseFloat(v) : v
-  return Number.isFinite(n) ? n : 0
-}
+import { parseMoney } from './money.js'
+
+const num = parseMoney
 
 function fmtEuro(value) {
   return new Intl.NumberFormat('it-IT', {

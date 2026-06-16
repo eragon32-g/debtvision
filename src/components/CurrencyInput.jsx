@@ -1,15 +1,44 @@
-// Input numerico in euro, riutilizzabile e coerente col tema scuro.
+import { useState, useEffect } from 'react'
+import { parseMoney, roundMoney } from '../utils/money.js'
+
+// Input monetario: accetta virgola o punto, salva come number decimale.
 export default function CurrencyInput({ id, label, value, onChange }) {
-  const displayValue = value === 0 || value === undefined || value === null ? '' : value
+  const [text, setText] = useState('')
+  const [focused, setFocused] = useState(false)
+
+  useEffect(() => {
+    if (!focused) {
+      const n = roundMoney(value)
+      setText(n === 0 ? '' : String(n).replace('.', ','))
+    }
+  }, [value, focused])
+
+  const handleFocus = () => {
+    setFocused(true)
+    const n = roundMoney(value)
+    setText(n === 0 ? '' : String(n).replace('.', ','))
+  }
+
+  const handleBlur = () => {
+    setFocused(false)
+    onChange(parseMoney(text))
+  }
 
   const handleChange = (event) => {
     const raw = event.target.value
-    if (raw === '') {
+    if (raw !== '' && !/^[\d.,]*$/.test(raw)) return
+
+    setText(raw)
+
+    if (raw === '' || raw === ',' || raw === '.') {
       onChange(0)
       return
     }
-    const parsed = parseFloat(raw)
-    onChange(Number.isFinite(parsed) ? parsed : 0)
+
+    // Consenti digitazione parziale tipo "1800," prima dei centesimi
+    if (/[.,]$/.test(raw)) return
+
+    onChange(parseMoney(raw))
   }
 
   return (
@@ -23,12 +52,12 @@ export default function CurrencyInput({ id, label, value, onChange }) {
         </span>
         <input
           id={id}
-          type="number"
+          type="text"
           inputMode="decimal"
-          min="0"
-          step="0.01"
-          value={displayValue}
+          value={text}
           onChange={handleChange}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
           placeholder="0,00"
           className="w-full rounded-lg border border-slate-800 bg-slate-900/80 py-2.5 pl-7 pr-3 text-sm text-slate-100 placeholder:text-slate-600 focus:border-brand-500/60 focus:outline-none focus:ring-1 focus:ring-brand-500/40"
         />
